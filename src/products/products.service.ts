@@ -22,13 +22,37 @@ export class ProductsService {
   }
 
   async findAll() {
-    const { rows } = await this.db.query('select * from products');
+    const { rows } = await this.db.query(`
+    select p.product_id , p.product_descr , p.product_image , p.product_count 
+    , p.product_price , p.created_at , json_agg(json_build_object(
+      'id', ct.category_id,
+      'name', ct.category_name,
+      'category_cteated_at', ct.created_at,
+      'category_photo', ct.category_photo
+    )) as category
+     from products p 
+      left join category ct 
+        on p.category_id = ct.category_id
+          group by p.product_id , p.product_descr , p.product_image , p.product_count 
+            , p.product_price , p.created_at `);
     return rows;
   }
 
   async findOne(id: string) {
     const { rows: data } = await this.db.query(
-      'select * from products where product_id = $1',
+      ` select p.product_id , p.product_descr , p.product_image , p.product_count 
+      , p.product_price , p.created_at , json_agg(json_build_object(
+        'category_id', ct.category_id,
+        'category_name', ct.category_name,
+        'category_cteated_at', ct.created_at,
+        'category_photo', ct.category_photo
+      )) as category
+       from products p 
+        left join category ct 
+          on p.category_id = ct.category_id
+            where p.product_id = $1
+              group by p.product_id , p.product_descr , p.product_image , p.product_count 
+              , p.product_price , p.created_at`,
       [id],
     );
     return data;
@@ -59,6 +83,6 @@ export class ProductsService {
       'delete from products where product_id=$1 returning *',
       [id],
     );
-    return { message: 'delete product', data };
+    return { message: 'deleted product', data };
   }
 }

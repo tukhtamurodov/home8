@@ -24,15 +24,58 @@ export class CategoryService {
   }
 
   async findAll(): Promise<Response> {
-    const { rows } = await this.db.query('select * from category');
+    let { rows } = await this.db.query(`
+    select ct.category_id , ct.category_name,
+    ct.created_at, ct.category_photo,
+    json_agg(json_build_object(
+      'product_id',pr.product_id , 
+      'product_descr',pr.product_descr ,
+      'product_image',pr.product_image ,
+      'product_count',pr.product_count ,
+      'product_price',pr.product_price ,
+      'created_at',pr.created_at 
+    )) as product
+     from category ct
+      left join products pr 
+        on ct.category_id = pr.category_id
+          group by ct.category_id , ct.category_name,
+            ct.created_at, ct.category_photo`);
+
+    rows = rows.map((u) => {
+      if (!u.product[0].product_id) {
+        delete u.product;
+        return u;
+      }
+      return u;
+    });
+
     return rows;
   }
 
   async findOne(id: string) {
     const { rows: data } = await this.db.query(
-      'select * from category where category_id = $1',
+      `
+      select ct.category_id , ct.category_name,
+      ct.created_at, ct.category_photo,
+      json_agg(json_build_object(
+        'product_id',pr.product_id , 
+        'product_descr',pr.product_descr ,
+        'product_image',pr.product_image ,
+        'product_count',pr.product_count ,
+        'product_price',pr.product_price ,
+        'created_at',pr.created_at 
+      )) as product
+       from category ct
+        left join products pr 
+          on ct.category_id = pr.category_id
+            where ct.category_id = $1
+            group by ct.category_id , ct.category_name,
+              ct.created_at, ct.category_photo`,
       [id],
     );
+    if (!data[0].product[0].product_id) {
+      delete data[0].product;
+    }
     return data;
   }
 
